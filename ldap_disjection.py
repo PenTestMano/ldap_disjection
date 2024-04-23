@@ -380,7 +380,7 @@ class WebLdapScanner:
         else:
             logger.debug(f"[*] --------------------")
             logger.debug(f"[*] Payload : {payload}")
-            logger.info(f"Flag: {flag}")
+            logger.debug(f"Flag: {flag}")
             logger.debug(f"Content Length: {len(text)}")
         logger.debug(f"[*] Request status code : {status_code}")
         logger.debug(f"[*] Is cond active and in Response text : {is_cond}")
@@ -400,7 +400,7 @@ class WebLdapScanner:
     def print_start_msg(self):
         logger.warning(f"[*] Url : {self.prms.get('url')}")
         logger.warning(f"[*] Request Type : {self.prms.get('req_type')}")
-        logger.warning(f"[*] Requests per second : {self.prms.get('req_per_second')}s")
+        logger.warning(f"[*] Requests per second : {self.prms.get('req_per_second')}")
 
 class AppFilter(logging.Filter):
     """
