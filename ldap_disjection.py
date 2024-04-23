@@ -302,6 +302,7 @@ class WebLdapScanner:
                                 is_neg_cond: bool,
                                 is_valid_field: bool):
                                 if is_valid_field:
+        if is_valid_field:
             logger.info(f"[*] --------------------")
             logger.info(f"[*] Payload : {payload}")
             logger.info(f"Flag: {flag}")
