@@ -9,7 +9,6 @@ from time import sleep
 from urllib3 import disable_warnings
 from urllib3.exceptions import InsecureRequestWarning
 from urllib.parse import quote
-#from rich.console import Console
 import argparse
 
 __version__ = "1.0.0"
@@ -17,7 +16,6 @@ __version__ = "1.0.0"
 logging.basicConfig()
 logger = logging.getLogger("ldap_disjection")
 disable_warnings(InsecureRequestWarning)
-#console = Console()
 
 class WebLdapScanner:
 
@@ -63,7 +61,7 @@ class WebLdapScanner:
         if isfile(word_list):
             with open(word_list, "r") as f:
                 for line in f:
-                    yield line.split('\n').strip()
+                    yield line.strip()
         else:
             raise Exception("Bad word list file.")
 
@@ -72,7 +70,11 @@ class WebLdapScanner:
             for field in self.read_word_list(word_list):
                 yield str(field)
         else:
-            for field in WebLdapScanner.get_basic_fields():
+            fields = WebLdapScanner.get_basic_fields()
+            nb_fields = len(fields)
+            logger.warning(f"[*] Word List length : {nb_fields}")
+            logger.warning(f"[*] Estimation time for every character : {nb_fields/self.prms.get('req_per_second')}s")
+            for field in fields:
                 yield str(field)
 
     def discover_fields(self, **kwargs):
@@ -87,10 +89,7 @@ class WebLdapScanner:
          debug) = WebLdapScanner.get_discover_prms(**kwargs).values()
 
         fields = []
-        nb_fields = len(word_list)
-        logger.info(f"[*] Start Discover valid LDAP fields.")
-        logger.debug(f"[*] Word List length : {nb_fields}")
-        logger.warning(f"[*] Estimation time for every character : {nb_fields/req_per_second}s")
+        logger.warning(f"[*] Start Discover valid LDAP fields.")
         payload = ""
         url_base = WebLdapScanner.get_base_url(url, prm_start, value_start)
 
