@@ -109,8 +109,7 @@ class WebLdapScanner:
                 is_valid_field = (cond is None or is_cond is True) \
                     and (neg_cond is None or is_neg_cond is True)
 
-                if debug is True:
-                    WebLdapScanner.print_discover_line_debug(
+                WebLdapScanner.print_discover_line(
                         payload=payload,
                         field=field,
                         status_code=r.status_code,
@@ -122,11 +121,7 @@ class WebLdapScanner:
 
                 if is_valid_field:
                     fields.append(field)
-                    WebLdapScanner.print_discover_line_result(
-                        payload=payload,
-                        field=field,
-                        text=r.text
-                    )
+                    
                 sleep(sleep_req)
         return fields
 
@@ -172,27 +167,21 @@ class WebLdapScanner:
                 is_valid_field = (cond is None or is_cond is True) \
                     and (neg_cond is None or is_neg_cond is True)
 
-                WebLdapScanner.print_discover_line_debug(
+                WebLdapScanner.print_brute_field_value(
                     payload=payload,
-                    field=flag,
+                    flag=flag,
                     status_code=r.status_code,
                     text=r.text,
                     is_cond=is_cond,
                     is_neg_cond=is_neg_cond,
                     is_valid_field=is_valid_field
                 )
-                    
 
                 if is_valid_field:
                     has_found_char = True
                     test_spe_char = True
                     char_add = None
                     flag += quoted
-                    WebLdapScanner.print_brute_field_value(
-                        payload=payload,
-                        field=flag,
-                        text=r.text
-                    )
                     sleep(sleep_req)
                     break
                 else:
@@ -279,38 +268,56 @@ class WebLdapScanner:
 
 
     @staticmethod
-    def print_discover_line_debug(payload: str,
-                                  field: str,
-                                  status_code: int,
-                                  text: str,
-                                  is_cond: bool,
-                                  is_neg_cond: bool,
-                                  is_valid_field: bool):
-
-        logger.debug(f"[*] ------------------------------------------------------------------------")
-        logger.debug(f"[*] Payload : {payload}")
-        logger.debug(f"[*] Test field : {field}")
+    def print_discover_line(payload: str,
+                            field: str,
+                            status_code: int,
+                            text: str,
+                            is_cond: bool,
+                            is_neg_cond: bool,
+                            is_valid_field: bool):
+        if is_valid_field:
+            logger.info(f"[*] --------------------")
+            logger.info(f"[*] Payload : {payload}")
+            logger.info(f"Field: {field}")
+            logger.info(f"Content Length: {len(text)}")
+        else:
+            logger.debug(f"[*] --------------------")
+            logger.debug(f"[*] Payload : {payload}")
+            logger.debug(f"Field: {field}")
+            logger.debug(f"Content Length: {len(text)}")
         logger.debug(f"[*] Request status code : {status_code}")
         logger.debug(f"[*] Is cond active and in Response text : {is_cond}")
         logger.debug(f"[*] Is neg_cond active and not in Response text : {is_neg_cond}")
         logger.debug(f"[*] Is Valid Field : {is_valid_field}")
         logger.debug(f"Content Length: {len(text)}")
         logger.debug(f"[*] Response text : {text}")
-        logger.debug(f"[*] ------------------------------------------------------------------------")
-
-    @staticmethod
-    def print_discover_line_result(payload, field, text):
-        logger.info(f"Payload : {payload}")
-        logger.info(f"Field: {field}")
-        logger.info(f"Content Length: {len(text)}")
-        logger.debug(f"Content: {text}")
+        logger.debug(f"[*] --------------------")
     
     @staticmethod
-    def print_brute_field_value(payload, field, text):
-        logger.info(f"Payload : {payload}")
-        logger.info(f"Flag: {field}")
-        logger.info(f"Content Length: {len(text)}")
-        logger.debug(f"Content: {text}")
+    def print_brute_field_value(payload: str,
+                                flag: str,
+                                status_code: int,
+                                text: str,
+                                is_cond: bool,
+                                is_neg_cond: bool,
+                                is_valid_field: bool):
+                                if is_valid_field:
+            logger.info(f"[*] --------------------")
+            logger.info(f"[*] Payload : {payload}")
+            logger.info(f"Flag: {flag}")
+            logger.info(f"Content Length: {len(text)}")
+        else:
+            logger.debug(f"[*] --------------------")
+            logger.debug(f"[*] Payload : {payload}")
+            logger.debug(f"Field: {field}")
+            logger.debug(f"Content Length: {len(text)}")
+        logger.debug(f"[*] Request status code : {status_code}")
+        logger.debug(f"[*] Is cond active and in Response text : {is_cond}")
+        logger.debug(f"[*] Is neg_cond active and not in Response text : {is_neg_cond}")
+        logger.debug(f"[*] Is Valid Field : {is_valid_field}")
+        logger.debug(f"Content Length: {len(text)}")
+        logger.debug(f"[*] Response text : {text}")
+        logger.debug(f"[*] --------------------")
     
     @staticmethod
     def get_request_per_second(sleep_req):
