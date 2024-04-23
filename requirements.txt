@@ -1,0 +1,4 @@
+requests
+simplejson
+urllib3
+ve-utils
