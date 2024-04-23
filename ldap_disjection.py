@@ -87,7 +87,10 @@ class WebLdapScanner:
          debug) = WebLdapScanner.get_discover_prms(**kwargs).values()
 
         fields = []
+        nb_fields = len(word_list)
         logger.info(f"[*] Start Discover valid LDAP fields.")
+        logger.debug(f"[*] Word List length : {nb_fields}")
+        logger.warning(f"[*] Estimation time for every character : {nb_fields/req_per_second}s")
         payload = ""
         url_base = WebLdapScanner.get_base_url(url, prm_start, value_start)
 
@@ -144,7 +147,7 @@ class WebLdapScanner:
 
         logger.warning(f"[*] Start LDAP BruteFoce value of Field : {brute_prm}")
         logger.debug(f"[*] Characters : {alphabet}")
-        logger.warning(f"[*] Estimation time for every character : {len(alphabet)/req_per_second}")
+        logger.warning(f"[*] Estimation time for every character : {len(alphabet)/req_per_second}s")
         flag = ""
         char_add = None
         run = True
@@ -300,6 +303,7 @@ class WebLdapScanner:
     def print_discover_line_result(payload, field, text):
         logger.info(f"Payload : {payload}")
         logger.info(f"Field: {field}")
+        logger.info(f"Content Length: {len(text)}")
         logger.debug(f"Content: {text}")
     
     @staticmethod
@@ -319,7 +323,7 @@ class WebLdapScanner:
     def print_start_msg(self):
         logger.warning(f"[*] Url : {self.prms.get('url')}")
         logger.warning(f"[*] Request Type : {self.prms.get('req_type')}")
-        logger.warning(f"[*] Requests per second : {self.prms.get('req_per_second')}")
+        logger.warning(f"[*] Requests per second : {self.prms.get('req_per_second')}s")
 
 class AppFilter(logging.Filter):
     """
