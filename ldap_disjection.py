@@ -125,7 +125,12 @@ class WebLdapScanner:
                     and (neg_cond is None or is_neg_cond is True)
 
                 if isinstance(res_reg, re.Pattern):
-                    result = re.findall(res_reg, response)
+                    find = re.findall(res_reg, response)
+                    if Ut.is_list(find):
+                        if len(find) == 1:
+                            result = find[0]
+                        else:
+                            result = find
                 else:
                     result = response
             except Exception as ex:
