@@ -131,6 +131,8 @@ class WebLdapScanner:
                             result = find[0]
                         else:
                             result = find
+                    else:
+                        result = ""
                 else:
                     result = response
             except Exception as ex:
@@ -274,6 +276,7 @@ class WebLdapScanner:
             result = self.discover_fields(
                 *WebLdapScanner.get_discover_prms(**self.prms).values()
             )
+            logger.warning(f"[*] Fields discovered : {result}")
         elif self.prms.get('mode') == "brutforce":
             result = self.brute_field_value(
                 *WebLdapScanner.get_brute_prms(**self.prms).values()
@@ -366,18 +369,22 @@ class WebLdapScanner:
                             is_neg_cond: bool,
                             is_valid_field: bool,
                             is_verbose:bool = False):
-        if is_valid_field:
+        result_len = 0
+        if Ut.is_str(text):
+            result_len = len(text)
+        
+        if is_valid_field and result_len > 0:
             logger.info(f"[*] --------------------")
             logger.info(f"[*] Payload : {payload}")
             logger.info(f"Field: {field}")
-            logger.info(f"Content Length: {len(text)}")
+            logger.info(f"Content Length: {result_len}")
             if is_verbose is True:
                 logger.info(f"[*] Response text : {text}")
         else:
             logger.debug(f"[*] --------------------")
             logger.debug(f"[*] Payload : {payload}")
             logger.debug(f"Field: {field}")
-            logger.debug(f"Content Length: {len(text)}")
+            logger.debug(f"Content Length: {result_len}")
             logger.debug(f"[*] Response text : {text}")
 
         logger.debug(f"[*] Request status code : {status_code}")
