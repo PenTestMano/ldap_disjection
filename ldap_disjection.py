@@ -345,7 +345,7 @@ class WebLdapScanner:
 
     @staticmethod
     def get_payload(url, prm_start, field):
-        payload = f"{url}?"
+        payload = f"{url}"
         if Ut.is_str(prm_start):
             payload += f"*)({field}=*"
         else:
